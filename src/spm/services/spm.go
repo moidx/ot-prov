@@ -8,6 +8,7 @@ package spm
 import (
 	"context"
 	"crypto/x509"
+	"filepath"
 	"fmt"
 	"log"
 	"os"
@@ -485,7 +486,7 @@ func (s *server) initializeSKU(skuName string) error {
 	// Load all certificates referenced in the SKU configuration.
 	certs := make(map[string]*x509.Certificate)
 	for _, cert := range cfg.Certs {
-		c, err := utils.LoadCertFromFile(s.configDir, cert.Path)
+		c, err := utils.LoadCertFromFile(filepath.Join(s.configDir, cert.Path))
 		if err != nil {
 			return fmt.Errorf("could not load cert: %v", err)
 		}

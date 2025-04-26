@@ -2,9 +2,27 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test", "go_binary")
 
 package(default_visibility = ["//visibility:public"])
+
+go_library(
+    name = "certutils",
+    srcs = ["certutils.go"],
+    importpath = "github.com/lowRISC/opentitan-provisioning/src/utils/certutils",
+)
+
+go_binary(
+    name = "csrgen",
+    srcs = ["csrgen.go"],
+    deps = [
+        ":certutils",
+        "//src/pk11",
+        "//src/spm/services:se",
+        "//src/utils",
+        "//src/version:buildver",
+    ],
+)
 
 go_library(
     name = "devid",

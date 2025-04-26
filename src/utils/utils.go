@@ -18,11 +18,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/lowRISC/opentitan-provisioning/src/version/buildver"
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gopkg.in/yaml.v3"
+
+	"github.com/lowRISC/opentitan-provisioning/src/version/buildver"
 )
 
 func PrintVersion(exit bool) string {
@@ -185,27 +186,31 @@ func LoadJSONConfig(configPath string, v interface{}) error {
 	return nil
 }
 
-// LoadCertFromFile reads a yaml configuration file from the specified path and
-// parse it into the certificate object.
-//
-// Parameters:
-//   - configDir: The directory path of the Yaml configuration file.
-//   - filename:  The filename.
-//
-// Returns:
-//   - A pointer to the X509 certificate struct where the configuration will be parsed.
-//   - An error if there was an issue reading or unmarshaling the configuration file.
-func LoadCertFromFile(configDir, filename string) (*x509.Certificate, error) {
-	cert, err := ReadFileFromDir(configDir, filename)
+// LoadCertFromFile reads a certificate from a file and parses it into an
+// x509.Certificate object.
+// If the file does not exist or cannot be read, it returns an error.
+func LoadCertFromFile(filename string) (*x509.Certificate, error) {
+	fileBytes, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("unable to read certificate file, error: %v", err)
 	}
 
-	certObj, err := x509.ParseCertificate(cert)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse certificate, error: %v", err)
+	block, _ := pem.Decode(fileBytes)
+	if block != nil {
+		if block.Type == "CERTIFICATE" {
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				return nil, fmt.Errorf("unable to parse certificate in PEM format, error: %v", err)
+			}
+			return cert, nil
+		}
 	}
-	return certObj, nil
+
+	cert, err := x509.ParseCertificate(fileBytes)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse certificate in DER format, error: %v", err)
+	}
+	return cert, nil
 }
 
 func CalcXorByteArrays(a, b []byte) ([]byte, error) {
