@@ -20,10 +20,19 @@ load(
 
 package(default_visibility = ["//visibility:public"])
 
+
 hsm_sku_wrapping_key(
     name = "eg-aes-wrap-v0",
-    wrapping_key = "//config/prod/spm/sku:spm-rsa-wrap-v0",
-    wrapping_mechanism = "RsaPkcsOaep",
+    wrapping_key = select({
+        ":dev_env": "//config/dev/spm/sku:spm-rsa-wrap-v0",
+        ":prod_env": "//config/prod/spm/sku:spm-rsa-wrap-v0",
+        "//conditions:default": "//config/dev/spm/sku:spm-rsa-wrap-v0", # Default to dev
+    }),
+    wrapping_mechanism = select({
+        ":dev_env": "RsaPkcs",
+        ":prod_env": "RsaPkcsOaep",
+        "//conditions:default": "RsaPkcs", # Default to dev
+    }),
 )
 
 hsm_sku_rma_key(
@@ -38,13 +47,21 @@ hsm_certificate_authority_root(
 hsm_generic_secret(
     name = "eg-kdf-hisec-v0",
     wrapping_key = ":eg-aes-wrap-v0",
-    wrapping_mechanism = "VendorThalesAesKwp",
+    wrapping_mechanism = select({
+        ":dev_env": "AesKeyWrap",
+        ":prod_env": "VendorThalesAesKwp",
+        "//conditions:default": "AesKeyWrap", # Default to dev
+    }),
 )
 
 hsm_generic_secret(
     name = "eg-kdf-losec-v0",
     wrapping_key = ":eg-aes-wrap-v0",
-    wrapping_mechanism = "VendorThalesAesKwp",
+    wrapping_mechanism = select({
+        ":dev_env": "AesKeyWrap",
+        ":prod_env": "VendorThalesAesKwp",
+        "//conditions:default": "AesKeyWrap", # Default to dev
+    }),
 )
 
 hsm_certgen(
@@ -67,13 +84,29 @@ hsm_config_tar(
 
 hsm_config_tar(
     name = "offline_export",
-    hsmtool_sequence = {
-        "//config/prod/spm/sku:spm-rsa-wrap-v0": "import",
-        ":eg-aes-wrap-v0": "export",
-        ":eg-kdf-hisec-v0": "export",
-        ":eg-kdf-losec-v0": "export",
-        ":sku-eg-rsa-rma-v0": "export",
-    },
+    hsmtool_sequence = select({
+        ":dev_env": {
+            "//config/dev/spm/sku:spm-rsa-wrap-v0": "import",
+            ":eg-aes-wrap-v0": "export",
+            ":eg-kdf-hisec-v0": "export",
+            ":eg-kdf-losec-v0": "export",
+            ":sku-eg-rsa-rma-v0": "export",
+        },
+        ":prod_env": {
+            "//config/prod/spm/sku:spm-rsa-wrap-v0": "import",
+            ":eg-aes-wrap-v0": "export",
+            ":eg-kdf-hisec-v0": "export",
+            ":eg-kdf-losec-v0": "export",
+            ":sku-eg-rsa-rma-v0": "export",
+        },
+        "//conditions:default": { # Default to dev
+            "//config/dev/spm/sku:spm-rsa-wrap-v0": "import",
+            ":eg-aes-wrap-v0": "export",
+            ":eg-kdf-hisec-v0": "export",
+            ":eg-kdf-losec-v0": "export",
+            ":sku-eg-rsa-rma-v0": "export",
+        },
+    }),
 )
 
 # Initialize the SPM instance with the shared secrets produced by
@@ -104,8 +137,9 @@ pkg_tar(
         ":spm_sku_init",
     ] + [
         # Certificate template files.
+        # Ensure this ca_root.conf is also in the common location or adjust path.
         ":ca_root.conf",
     ],
     extension = "tar.gz",
     include_runfiles = True,
-)
+) 
