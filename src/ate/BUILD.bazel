@@ -121,3 +121,19 @@ pkg_win(
     ],
     platform = "@crt//platforms/x86_32:win32",
 )
+
+load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "perso_blob_go",
+    srcs = ["perso_blob.go"],
+    importpath = "github.com/lowRISC/opentitan-provisioning/src/ate",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "perso_blob_go_test",
+    srcs = ["perso_blob_test.go"],
+    embed = [":perso_blob_go"],
+    deps = ["@com_github_google_go_cmp//cmp"],
+)

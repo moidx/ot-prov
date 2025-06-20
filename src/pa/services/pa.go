@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
+	"github.com/lowRISC/opentitan-provisioning/src/ate"
 	pap "github.com/lowRISC/opentitan-provisioning/src/pa/proto/pa_go_pb"
 	rs "github.com/lowRISC/opentitan-provisioning/src/pa/services/registry_shim"
 	certpb "github.com/lowRISC/opentitan-provisioning/src/proto/crypto/cert_go_pb"
@@ -23,6 +24,7 @@ import (
 	ecdsapb "github.com/lowRISC/opentitan-provisioning/src/proto/crypto/ecdsa_go_pb"
 	pbs "github.com/lowRISC/opentitan-provisioning/src/spm/proto/spm_go_pb"
 	"github.com/lowRISC/opentitan-provisioning/src/transport/auth_service"
+	"github.com/lowRISC/opentitan-provisioning/src/utils/devid"
 )
 
 // server is the server object.
@@ -161,6 +163,22 @@ func (s *server) RegisterDevice(ctx context.Context, request *pap.RegistrationRe
 	deviceDataBytes, err := proto.Marshal(request.DeviceData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal device data: %v", err)
+	}
+
+	// Unpack the perso blob.
+	persoBlob, err := ate.UnpackPersoBlob(request.DeviceData.PersoTlvData)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to unpack perso blob: %v", err)
+	}
+
+	// Validate the device ID.
+	_, err = devid.FromRawBytes(persoBlob.DeviceID.Raw[:])
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to validate device ID: %v", err)
+	}
+
+	for _, cert := range persoBlob.X509Certs {
+		log.Printf("In PA - Received X509Cert: %q", cert.KeyLabel)
 	}
 
 	// Endorse data payload.
